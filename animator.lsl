@@ -116,11 +116,21 @@ integer isValidAnimation(string animation) {
 applyALLAO(list animationsAO) {
   string nameAnimation;
   string nameAO;
+  string currentAppliedAnimation;
   integer count = llGetListLength(animationsAO);
   while (count--) {
     nameAnimation = llList2String(animationsAO, count);
     nameAO = trim(unprefixAO(nameAnimation));
-    llSetAnimationOverride(nameAO, nameAnimation);
+    currentAppliedAnimation = llGetAnimationOverride(nameAO);
+    // Apply-Reapply only if it the same animation that is in the inventory
+    if (currentAppliedAnimation != nameAnimation) {
+      llSetAnimationOverride(nameAO, nameAnimation);
+    }
+  }
+
+  string cyclingAnimName = "AO Standing" + ((string)gStandingCount);
+  if (llGetInventoryType(cyclingAnimName) != INVENTORY_NONE) {
+    llSetAnimationOverride("Standing", cyclingAnimName);
   }
 }
 
@@ -186,7 +196,7 @@ animatorCanInitialize(list animationsAO) {
 /**
  * Checks and resets all periodically (called by the ti)
  */
-preventReset(string lastRequestedAnimation) {
+preventReset(string lastRequestedAnimation, list animationsAO) {
   string animationToCheck = lastRequestedAnimation;
   // if not a valid anim, then try the init one
   if (!isValidAnimation(animationToCheck)) {
@@ -201,6 +211,12 @@ preventReset(string lastRequestedAnimation) {
       llStartAnimation(animationToCheck);
     }
   }
+
+  integer hasInitAnimation = llGetInventoryType("init") != INVENTORY_NONE;
+  if (!hasInitAnimation) {
+    applyALLAO(animationsAO);
+  }
+
 }
 
 
@@ -310,7 +326,7 @@ default {
   timer() {
 
     if (gTimerTickCount % gTimerForPreventReset == 0) {
-      preventReset(gPreviousAnimation);
+      preventReset(gPreviousAnimation, gAnimationsAO);
     }
 
     if (gTimerTickCount % gTimerForAOCycle == 0) {
@@ -381,14 +397,16 @@ Init animation
 The animation init if present will be started at attach moment.
 If the init animation is present, AOs will be IGNORED.
 
+The AO Standing animation is the only one that needs to be numbered and is capable of cycling.
+
 Example inv names:
 
 init
 AO Flying
 AO Sitting
-AO Standing
 AO Standing1
 AO Standing2
+AO Standing3
 My wonderful animation
 Wings folded
 
