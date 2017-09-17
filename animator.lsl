@@ -183,6 +183,27 @@ animatorCanInitialize(list animationsAO) {
 }
 
 
+/**
+ * Checks and resets all periodically (called by the ti)
+ */
+preventReset(string lastRequestedAnimation) {
+  string animationToCheck = lastRequestedAnimation;
+  // if not a valid anim, then try the init one
+  if (!isValidAnimation(animationToCheck)) {
+    animationToCheck = "init";
+  }
+  // Anim was not the requested one? Apply it again.
+  if (isValidAnimation(animationToCheck)) {
+    string activeAnimations = llDumpList2String(llGetAnimationList(llGetOwner()), " - ");
+    key requestedAnimKey = llGetInventoryKey(animationToCheck);
+    // If not found in active animations, retrigger it
+    if (llSubStringIndex(activeAnimations, (string) requestedAnimKey) == -1) {
+      llStartAnimation(animationToCheck);
+    }
+  }
+}
+
+
 /*
   G L O B A L S
 */
@@ -202,6 +223,8 @@ float gTimerTickPeriod = 1.0;
 integer gTimerTickCount;
 // How much time the AOs will cycle (in ticks)
 integer gTimerForAOCycle = 30;
+// How much time to check that anims are still running and reapply if they are not
+integer gTimerForPreventReset = 2;
 
 
 /*
@@ -276,6 +299,7 @@ default {
 
     if (message == "STOP") { 
       stopRequestedAnimation(gPreviousAnimation);
+      gPreviousAnimation = "";
     } else {
       gPreviousAnimation = message;
       requestAnimation(message);
@@ -285,11 +309,14 @@ default {
 
   timer() {
 
+    if (gTimerTickCount % gTimerForPreventReset == 0) {
+      preventReset(gPreviousAnimation);
+    }
+
     if (gTimerTickCount % gTimerForAOCycle == 0) {
       // In case there was an AO set present, the standing animations
       // will keep cycling until there are available in the inventory.
       // (only the sitting AOs)
-      // The timer does that.
       string animName = "AO Standing" + ((string)gStandingCount);
       if (llGetInventoryType(animName) != INVENTORY_NONE) {
         llSetAnimationOverride("Standing", animName);
