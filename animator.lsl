@@ -179,11 +179,6 @@ animatorCanInitialize(list animationsAO) {
   } else {
     // Apply all the AOs
     applyALLAO(animationsAO);
-    // In case there was an AO set present, the standing animations
-    // will keep cycling until there are available in the inventory.
-    // (only the sitting AOs)
-    // The timer does that.
-    llSetTimerEvent(30);
   }
 }
 
@@ -200,6 +195,13 @@ integer gListenDialogChannel;
 integer gListenDialogHandle;
 integer gStandingCount;
 string gPreviousAnimation;
+// How frequent the main timer tick will be, all other counters will be based on this number
+// Number is a float in unit of seconds
+float gTimerTickPeriod = 1.0;
+// The current timer tick, it increments at each tick.
+integer gTimerTickCount;
+// How much time the AOs will cycle (in ticks)
+integer gTimerForAOCycle = 30;
 
 
 /*
@@ -217,6 +219,7 @@ default {
     }
 
     gStandingCount = 1;
+    gTimerTickCount = 1;
 
     // Create random channel
     gListenDialogChannel = (integer)(llFrand(10000.0) + 10000.0);
@@ -254,6 +257,7 @@ default {
 
     if (hasBoth) {
       animatorCanInitialize(gAnimationsAO);
+      llSetTimerEvent(gTimerTickCount);
     }
 
   }
@@ -280,13 +284,22 @@ default {
   }
 
   timer() {
-    string animName = "AO Standing" + ((string)gStandingCount);
-    if (llGetInventoryType(animName) != INVENTORY_NONE) {
-      llSetAnimationOverride("Standing", animName);
-      gStandingCount = gStandingCount + 1;
-    } else {
-      gStandingCount = 1;
+
+    if (gTimerTickCount % gTimerForAOCycle == 0) {
+      // In case there was an AO set present, the standing animations
+      // will keep cycling until there are available in the inventory.
+      // (only the sitting AOs)
+      // The timer does that.
+      string animName = "AO Standing" + ((string)gStandingCount);
+      if (llGetInventoryType(animName) != INVENTORY_NONE) {
+        llSetAnimationOverride("Standing", animName);
+        gStandingCount = gStandingCount + 1;
+      } else {
+        gStandingCount = 1;
+      }
     }
+
+    gTimerTickCount += 1;
   }
 
 }
