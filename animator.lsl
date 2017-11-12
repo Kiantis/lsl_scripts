@@ -152,13 +152,16 @@ requestAnimation(string animation) {
 /**
  * A STOP was issued through dialog.
  */
-stopRequestedAnimation(string animation) {
+stopRequestedAnimation() {
 
-  if (!isValidAnimation(animation)) {
-    return;
+  integer count = llGetListLength(gAnimationsRequestable);
+  while (count--) {
+    string animation = llList2String(gAnimationsRequestable, count);
+    if (isValidAnimation(animation)) {
+      llStopAnimation(animation);
+    }
   }
 
-  llStopAnimation(animation);
   // If there is an init, then go the init way over again.
   if (llGetInventoryType("init") != INVENTORY_NONE) {
     llStartAnimation("init");
@@ -251,10 +254,9 @@ default {
 
   attach(key id) {
 
-    // NULL KEY is detachment
-    if (id == NULL_KEY) {
+    // Unlisten first
+    if (gListenDialogHandle) {
       llListenRemove(gListenDialogHandle);
-      return;
     }
 
     gStandingCount = 1;
@@ -295,6 +297,7 @@ default {
     }
 
     if (hasBoth) {
+      stopRequestedAnimation();
       animatorCanInitialize(gAnimationsAO);
       llSetTimerEvent(gTimerTickCount);
     }
@@ -313,8 +316,8 @@ default {
       return;
     }
 
+    stopRequestedAnimation();
     if (message == "STOP") { 
-      stopRequestedAnimation(gPreviousAnimation);
       gPreviousAnimation = "";
     } else {
       gPreviousAnimation = message;
