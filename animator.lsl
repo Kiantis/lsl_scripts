@@ -67,7 +67,7 @@ list exctractRequestable(list animations) {
     name = llList2String(animations, count);
     name = trim(name);
     // Take only the ones with NO prefix
-    if (llGetSubString(name, 0, 2) != "AO " && name != "init") {
+    if (llGetSubString(name, 0, 2) != "AO " && name != "init" && name != "fly") {
       result += name;
     }
   }
@@ -164,7 +164,12 @@ stopRequestedAnimation() {
 
   // If there is an init, then go the init way over again.
   if (llGetInventoryType("init") != INVENTORY_NONE) {
-    llStartAnimation("init");
+    integer bFlyingNow = llGetAgentInfo(llGetOwner()) & AGENT_FLYING;
+    if (bFlyingNow && llGetInventoryType("fly") != INVENTORY_NONE) {
+      llStartAnimation("fly");
+    } else {
+      llStartAnimation("init");
+    }
   }
   // AO need no reset, they will take over in such case.
 
@@ -237,14 +242,15 @@ integer gStandingCount;
 string gPreviousAnimation;
 // How frequent the main timer tick will be, all other counters will be based on this number
 // Number is a float in unit of seconds
-float gTimerTickPeriod = 1.0;
+float gTimerTickPeriod = 0.1;
 // The current timer tick, it increments at each tick.
 integer gTimerTickCount;
 // How much time the AOs will cycle (in ticks)
-integer gTimerForAOCycle = 30;
+integer gTimerForAOCycle = 300;
 // How much time to check that anims are still running and reapply if they are not
-integer gTimerForPreventReset = 2;
-
+integer gTimerForPreventReset = 20;
+integer bFlying = 0;
+integer bothInitAndFlyArePresent;
 
 /*
   F L O W
@@ -266,6 +272,10 @@ default {
     gListenDialogChannel = (integer)(llFrand(10000.0) + 10000.0);
     gListenDialogHandle = llListen(gListenDialogChannel, "", "","");
     //llOwnerSay("animator channel for " + llGetObjectName() + " : " + ((string) gListenDialogChannel));
+
+    bothInitAndFlyArePresent = 
+      llGetInventoryType("init") != INVENTORY_NONE && 
+      llGetInventoryType("fly") != INVENTORY_NONE;
 
     gAnimations = parseInventory();
     gAnimationsAO = extractAO(gAnimations);
@@ -327,6 +337,18 @@ default {
   }
 
   timer() {
+    
+    if (bothInitAndFlyArePresent) {
+      integer bFlyingNow = llGetAgentInfo(llGetOwner()) & AGENT_FLYING;
+      if (bFlyingNow && !bFlying) {
+        llStopAnimation("init");
+        llStartAnimation("fly");
+      } else if (bFlying && !bFlyingNow) {
+        llStopAnimation("fly");
+        llStartAnimation("init");
+      }
+      bFlying = bFlyingNow;
+    }
 
     if (gTimerTickCount % gTimerForPreventReset == 0) {
       preventReset(gPreviousAnimation, gAnimationsAO);
@@ -344,7 +366,7 @@ default {
         gStandingCount = 1;
       }
     }
-
+    
     gTimerTickCount += 1;
   }
 
@@ -399,12 +421,17 @@ AO names:
 Init animation
 The animation init if present will be started at attach moment.
 If the init animation is present, AOs will be IGNORED.
+In such case you can also use anim 'fly' for flight.
 
 The AO Standing animation is the only one that needs to be numbered and is capable of cycling.
 
 Example inv names:
 
 init
+fly
+
+OR
+
 AO Flying
 AO Sitting
 AO Standing1
