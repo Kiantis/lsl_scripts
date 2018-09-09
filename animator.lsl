@@ -285,7 +285,7 @@ default {
     // Start by requesting permissions, all else will follow
     // Need to request them both because one will cancel the other
     // if requested singularly.
-    llRequestPermissions(id, 
+    llRequestPermissions(llGetOwner(), 
       PERMISSION_OVERRIDE_ANIMATIONS |
       PERMISSION_TRIGGER_ANIMATION);
 
